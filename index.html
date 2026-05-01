@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fenix's Wumpus Agent 🌸</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap');
+        
+        * { box-sizing: border-box; }
+
+        body { 
+            font-family: 'Nunito', sans-serif; 
+            background-color: #f5ecef; /* Softer, muted dusty tone for less eye strain */
+            color: #6d597a; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            margin: 0; 
+            height: 100vh;
+            overflow: hidden; /* Prevents scrolling */
+        }
+        
+        h2 { 
+            color: #e07a93; 
+            font-size: 2.2em; 
+            margin: 0 0 25px 0; 
+            letter-spacing: 1px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        /* 3-Column Layout */
+        .app-container {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 260px;
+        }
+
+        /* Box Styling */
+        .panel-box {
+            background: #ffffff; 
+            padding: 20px; 
+            border-radius: 20px; 
+            box-shadow: 0 4px 12px rgba(224, 122, 147, 0.1);
+            border-top: 4px solid #ffb6c1;
+        }
+
+        /* Setup Inputs */
+        .setup-row { display: flex; gap: 8px; align-items: center; justify-content: center; margin-bottom: 15px;}
+        .setup-row label { font-weight: bold; color: #8e7a9c; }
+        
+        .panel-box input { 
+            width: 50px; 
+            padding: 6px; 
+            border: 2px solid #ffe4e1; 
+            border-radius: 10px; 
+            outline: none; 
+            text-align: center; 
+            color: #6d597a; 
+            font-family: 'Nunito', sans-serif; 
+            font-weight: bold;
+        }
+        
+        .btn-group { display: flex; flex-direction: column; gap: 10px; }
+        
+        .btn { 
+            border: none; 
+            padding: 10px; 
+            font-size: 1em; 
+            cursor: pointer; 
+            border-radius: 15px; 
+            font-weight: bold; 
+            transition: all 0.2s; 
+            font-family: 'Nunito', sans-serif;
+            width: 100%;
+        }
+        .btn-start { background: #ff9fb4; color: white; }
+        .btn-start:hover { background: #ff85a2; transform: translateY(-1px); }
+        .btn-cheat { background: #dda0dd; color: white; }
+        .btn-cheat:hover { background: #da70d6; transform: translateY(-1px); }
+        
+        /* Dashboard Stats (Now stacked vertically) */
+        .stat-box { text-align: center; padding: 10px 0; }
+        .stat-box:not(:last-child) { border-bottom: 2px dashed #ffe4e1; }
+        .stat-box h3 { margin: 0 0 5px 0; font-size: 0.85em; color: #b59baf; text-transform: uppercase; letter-spacing: 1px;}
+        .stat-box span { display: block; font-weight: bold; font-size: 1.2em; color: #ff85a2; min-height: 20px;}
+        
+        /* Right Side: Info & Legend */
+        .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-weight: bold; color: #8e7a9c; }
+        .legend-item:last-child { margin-bottom: 0; }
+        .color-box { width: 16px; height: 16px; border-radius: 5px; }
+
+        .rules h3 { margin: 0 0 10px 0; color: #b59baf; font-size: 1em; text-transform: uppercase; letter-spacing: 1px; text-align: center; }
+        .rules p { margin: 8px 0; font-size: 0.9em; line-height: 1.4; color: #8e7a9c; }
+        .rules strong { color: #e07a93; }
+
+        /* Canvas */
+        .center-panel { display: flex; flex-direction: column; align-items: center; }
+        canvas { 
+            background: #ffffff; 
+            border: 4px solid #f0e1e4; 
+            border-radius: 15px; 
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05); 
+            transition: opacity 0.2s;
+        }
+        
+        /* Subtle Instructions */
+        .hint { margin-top: 15px; font-size: 0.9em; color: #a48ea8; font-weight: bold; letter-spacing: 0.5px; }
+        
+        .percept-alert { color: #da70d6 !important; }
+    </style>
+</head>
+<body>
+
+    <h2>✨ Fenix's Wumpus Agent ✨</h2>
+    
+    <div class="app-container">
+        
+        <div class="side-panel">
+            <div class="panel-box">
+                <div class="setup-row">
+                    <label>Rows:</label> <input type="number" id="rowsInput" value="4" min="2" max="15">
+                    <label style="margin-left: 5px;">Cols:</label> <input type="number" id="colsInput" value="4" min="2" max="15">
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-start" onclick="resetGame()">New Episode</button>
+                    <button class="btn btn-cheat" onclick="toggleCheat()">Peek Hazards</button>
+                </div>
+            </div>
+            
+            <div class="panel-box" id="dashboard">
+                <div class="stat-box">
+                    <h3>Current Percepts</h3>
+                    <span id="percepts">None</span>
+                </div>
+                <div class="stat-box">
+                    <h3>Logic Steps</h3>
+                    <span id="inference">0</span>
+                </div>
+                <div class="stat-box">
+                    <h3>Agent Status</h3>
+                    <span id="status">Safe</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="center-panel">
+            <canvas id="gridCanvas" width="480" height="480"></canvas>
+            <div class="hint">Use W A S D or Arrow Keys to move</div>
+        </div>
+
+        <div class="side-panel">
+            <div class="panel-box">
+                <div class="rules"><h3>Map Legend</h3></div>
+                <div class="legend-item"><div class="color-box" style="background: #f0e6ea;"></div> Unknown Area</div>
+                <div class="legend-item"><div class="color-box" style="background: #c1f0c1;"></div> Proven Safe</div>
+                <div class="legend-item"><div class="color-box" style="background: #ff9999;"></div> Proven Danger</div>
+            </div>
+
+            <div class="panel-box rules">
+                <h3>How to Play</h3>
+                <p>Navigate the grid safely using logic.</p>
+                <p>If you feel a <strong>Breeze</strong>, there is a Pit in an adjacent square.</p>
+                <p>If you smell a <strong>Stench</strong>, the Wumpus is in an adjacent square.</p>
+                <p>Watch the logic engine map out safe tiles for you automatically!</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gridCanvas');
+        const ctx = canvas.getContext('2d');
+        let gameState = null;
+        let cheatMode = false;
+        let isProcessing = false; 
+
+        async function fetchState() {
+            const res = await fetch('/state');
+            gameState = await res.json();
+            updateUI();
+        }
+
+        async function attemptMove(direction) {
+            if (isProcessing || (gameState && gameState.is_dead)) return;
+            isProcessing = true;
+            
+            document.getElementById('status').innerText = "Thinking...";
+            document.getElementById('status').style.color = "#dda0dd";
+            canvas.style.opacity = "0.7";
+
+            try {
+                const res = await fetch(`/move/${direction}`, { method: 'POST' });
+                if (!res.ok) throw new Error("Server Request Failed");
+                gameState = await res.json();
+            } catch (error) {
+                console.error("Move Error:", error);
+                await fetchState(); 
+            } finally {
+                canvas.style.opacity = "1";
+                isProcessing = false;
+                updateUI();
+            }
+        }
+
+        async function resetGame() {
+            const rows = document.getElementById('rowsInput').value;
+            const cols = document.getElementById('colsInput').value;
+            const res = await fetch('/init', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rows: parseInt(rows), cols: parseInt(cols) })
+            });
+            gameState = await res.json();
+            updateUI();
+        }
+
+        function toggleCheat() {
+            cheatMode = !cheatMode;
+            updateUI();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (document.activeElement.tagName === 'INPUT') return;
+            let dir = null;
+            if (['ArrowUp', 'w', 'W'].includes(e.key)) dir = 'up';
+            if (['ArrowDown', 's', 'S'].includes(e.key)) dir = 'down';
+            if (['ArrowLeft', 'a', 'A'].includes(e.key)) dir = 'left';
+            if (['ArrowRight', 'd', 'D'].includes(e.key)) dir = 'right';
+            if (dir) {
+                e.preventDefault(); 
+                attemptMove(dir); 
+            }
+        });
+
+        function updateUI() {
+            if (!gameState) return;
+            
+            // 1. Update Real-Time Metrics (Percepts)
+            const p = gameState.percepts;
+            let pStr = [];
+            if (p.breeze) pStr.push("Breeze");
+            if (p.stench) pStr.push("Stench");
+            
+            const perceptsEl = document.getElementById('percepts');
+            if (pStr.length) {
+                perceptsEl.innerText = pStr.join(" | ");
+                perceptsEl.className = "percept-alert"; 
+            } else {
+                perceptsEl.innerText = "None";
+                perceptsEl.className = "";
+            }
+            
+            // 2. Update Inference Steps
+            document.getElementById('inference').innerText = gameState.inference_steps;
+
+            // 3. Update Agent Status
+            const statusEl = document.getElementById('status');
+            if (gameState.is_dead) {
+                statusEl.innerText = "Dead (Hit Hazard)";
+                statusEl.style.color = "#ff6b6b";
+            } else {
+                statusEl.innerText = "Safe";
+                statusEl.style.color = "#ff85a2";
+            }
+
+            // 4. Grid Visualization
+            const rows = gameState.grid_size.rows;
+            const cols = gameState.grid_size.cols;
+            const cellW = canvas.width / cols;
+            const cellH = canvas.height / rows;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const x = c * cellW;
+                    const y = r * cellH;
+
+                    let color = "#f0e6ea"; 
+                    if (gameState.known_hazards.some(h => h[0]===r && h[1]===c)) {
+                        color = "#ff9999"; 
+                    } else if (gameState.known_safe.some(s => s[0]===r && s[1]===c)) {
+                        color = "#c1f0c1"; 
+                    }
+
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x + 2, y + 2, cellW - 4, cellH - 4);
+                    
+                    ctx.fillStyle = "#b59baf";
+                    ctx.font = "bold 12px Nunito";
+                    ctx.fillText(`${r},${c}`, x + 8, y + 20);
+
+                    if (cheatMode) {
+                        const isActualPit = gameState.actual_pits.some(p => p[0]===r && p[1]===c);
+                        const isActualWumpus = gameState.actual_wumpus[0]===r && gameState.actual_wumpus[1]===c;
+                        
+                        ctx.font = "24px Arial";
+                        if (isActualWumpus) ctx.fillText("👾", x + cellW/2 - 12, y + cellH/2 + 8);
+                        if (isActualPit) ctx.fillText("🕳️", x + cellW/2 - 12, y + cellH/2 + 8);
+                    }
+                }
+            }
+
+            // Draw the Agent
+            const ax = gameState.agent_pos.c * cellW + cellW / 2;
+            const ay = gameState.agent_pos.r * cellH + cellH / 2;
+            ctx.beginPath();
+            ctx.arc(ax, ay, Math.min(cellW, cellH) / 3.5, 0, 2 * Math.PI);
+            ctx.fillStyle = gameState.is_dead ? "#555" : "#ff69b4"; 
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "white";
+            ctx.stroke();
+            
+            if (!gameState.is_dead) {
+                ctx.beginPath();
+                ctx.arc(ax - 5, ay - 5, Math.min(cellW, cellH) / 10, 0, 2 * Math.PI);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+                ctx.fill();
+            }
+        }
+
+        fetchState();
+    </script>
+</body>
+</html>
