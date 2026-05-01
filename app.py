@@ -1,43 +1,49 @@
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from flask import Flask, jsonify, request, render_template
 from logic import Grid, Agent
 
-app = FastAPI()
+app = Flask(__name__)
 
-game_grid = None
-game_agent = None
-
-class InitConfig(BaseModel):
-    rows: int
-    cols: int
+# This holds our active game in memory
+current_agent = None
 
 def init_game(rows=4, cols=4):
-    global game_grid, game_agent
-    game_grid = Grid(rows, cols)
-    game_agent = Agent(game_grid)
+    """Helper function to create a fresh grid and agent."""
+    global current_agent
+    grid = Grid(rows=rows, cols=cols)
+    current_agent = Agent(grid)
 
-init_game()
+@app.route('/')
+def home():
+    # Serves Fenix's UI from the /templates folder
+    return render_template('index.html')
 
-@app.get("/")
-def serve_ui():
-    return FileResponse("index.html")
-
-@app.post("/init")
-def reset_grid(config: InitConfig):
-    init_game(config.rows, config.cols)
-    return game_agent.get_state()
-
-@app.get("/state")
+@app.route('/state', methods=['GET'])
 def get_state():
-    return game_agent.get_state()
+    """Returns the current game state. Starts a new game if one doesn't exist."""
+    global current_agent
+    if current_agent is None:
+        init_game()
+    return jsonify(current_agent.get_state())
 
-@app.post("/move/{direction}")
-def move_agent(direction: str):
-    game_agent.move(direction)
-    return game_agent.get_state()
+@app.route('/init', methods=['POST'])
+def reset():
+    """Starts a brand new episode based on UI settings."""
+    data = request.get_json()
+    rows = data.get('rows', 4)
+    cols = data.get('cols', 4)
+    init_game(rows, cols)
+    return jsonify(current_agent.get_state())
 
-if __name__ == "__main__":
-    import uvicorn
-    print("Starting Optimized Server...")
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+@app.route('/move/<direction>', methods=['POST'])
+def move(direction):
+    """Moves the agent and returns the updated state."""
+    global current_agent
+    if current_agent is None:
+        init_game()
+        
+    current_agent.move(direction)
+    return jsonify(current_agent.get_state())
+
+# Vercel requires the app variable to exist, but if running locally:
+if __name__ == '__main__':
+    app.run(debug=True)
